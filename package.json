@@ -1,0 +1,18 @@
+{
+  "name": "lox",
+  "version": "1.0.0",
+  "description": "",
+  "dependencies": {
+    "@types/node": "^13.11.0",
+    "tslint": "^6.1.1",
+    "typescript": "^3.8.3"
+  },
+  "devDependencies": {},
+  "main": "dist/lox.js",
+  "scripts": {
+    "start": "tsc && node dist/lox.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
