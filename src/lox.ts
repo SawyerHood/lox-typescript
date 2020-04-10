@@ -1,7 +1,9 @@
 import {readFileSync} from 'fs'
 import readline from 'readline'
 import Scanner from './Scanner'
-import {setHadError} from './Error'
+import {setHadError, getHadError} from './Error'
+import Parser from './Parser'
+import * as AstPrinter from './AstPrinter'
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -37,10 +39,15 @@ function runPrompt() {
 function run(source: string) {
   const scanner = new Scanner(source)
   const tokens = scanner.scanTokens()
+  const parser = new Parser(tokens);
 
-  for (const token of tokens) {
-    console.log(token)
+  const expr = parser.parse()
+
+  if (getHadError() || !expr) {
+    return
   }
+
+  console.log(AstPrinter.visit(expr))
 }
 
 main(process.argv.slice(2))
