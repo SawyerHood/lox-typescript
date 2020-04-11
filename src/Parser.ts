@@ -1,6 +1,6 @@
 import Token from './Token'
 import TokenType from './TokenType'
-import {Expr, Binary, Grouping, Literal, Unary} from './Ast'
+import {Expr, Binary, Grouping, Literal, Unary, Stmt} from './Ast'
 import * as LoxError from './Error'
 
 export default class Parser {
@@ -11,16 +11,34 @@ export default class Parser {
     this.tokens = tokens
   }
 
-  parse(): Expr | null {
-    try {
-      return this.expression()
-    } catch (e) {
-      return null
+  parse(): Stmt[] {
+    const statements: Stmt[] = []
+    while (!this.isAtEnd()) {
+      statements.push(this.statement())
     }
+    return statements
   }
 
   expression(): Expr {
     return this.equality()
+  }
+
+  statement(): Stmt {
+    if (this.match(TokenType.PRINT)) return this.printStatement()
+
+    return this.expressionStatement()
+  }
+
+  printStatement(): Stmt {
+    const value = this.expression()
+    this.consume(TokenType.SEMICOLON, "Expect ';' after value.")
+    return {type: 'print statement', expression: value}
+  }
+
+  expressionStatement(): Stmt {
+    const expr = this.expression()
+    this.consume(TokenType.SEMICOLON, "Expect ';' after expression.")
+    return {type: 'expression statement', expression: expr}
   }
 
   equality(): Expr {
