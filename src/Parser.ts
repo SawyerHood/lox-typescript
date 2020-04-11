@@ -90,10 +90,20 @@ export default class Parser {
   statement(): Stmt {
     if (this.match(TokenType.IF)) return this.ifStatement()
     if (this.match(TokenType.PRINT)) return this.printStatement()
+    if (this.match(TokenType.WHILE)) return this.whileStatement()
     if (this.match(TokenType.LEFT_BRACE))
       return { type: "block statement", statements: this.block() }
 
     return this.expressionStatement()
+  }
+
+  whileStatement(): Stmt {
+    this.consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.")
+    const condition = this.expression()
+    this.consume(TokenType.RIGHT_PAREN, "Exprect ')' after condition.")
+    const body = this.statement()
+
+    return { type: "while statement", condition, body }
   }
 
   ifStatement(): Stmt {

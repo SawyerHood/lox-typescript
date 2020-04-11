@@ -20,4 +20,10 @@ export type IfStmt = {
   thenBranch: Stmt
   elseBranch: Stmt | null
 }
-export type Stmt = ExpressionStmt | PrintStmt | VarStmt | BlockStmt | IfStmt
+export type WhileStmt = {
+  type: "while statement"
+  condition: Expr
+  body: Stmt
+}
+
+export type Stmt = ExpressionStmt | PrintStmt | VarStmt | BlockStmt | IfStmt | WhileStmt

@@ -45,6 +45,12 @@ function evaluateStmt(stmt: Stmt): void {
       }
       return
     }
+    case "while statement": {
+      while (isTruthy(evaluate(stmt.condition))) {
+        evaluateStmt(stmt.body)
+      }
+      return
+    }
   }
 }
 
