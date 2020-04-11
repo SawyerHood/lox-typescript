@@ -1,4 +1,4 @@
-import { Expr, Unary, Binary, Stmt } from "./Ast"
+import { Expr, Unary, Binary, Stmt, Logical } from "./Ast"
 import TokenType from "./TokenType"
 import Token from "./Token"
 import { runtimeError } from "./Error"
@@ -35,6 +35,15 @@ function evaluateStmt(stmt: Stmt): void {
     }
     case "block statement": {
       evaluateBlock(stmt.statements, new Environment(environment))
+      return
+    }
+    case "if statement": {
+      if (isTruthy(evaluate(stmt.condition))) {
+        evaluateStmt(stmt.thenBranch)
+      } else if (stmt.elseBranch) {
+        evaluateStmt(stmt.elseBranch)
+      }
+      return
     }
   }
 }
@@ -55,6 +64,8 @@ function evaluate(expr: Expr): any {
   switch (expr.type) {
     case "literal":
       return expr.value
+    case "logical":
+      return evaluateLogical(expr)
     case "grouping":
       return evaluate(expr.expression)
     case "unary":
@@ -68,6 +79,17 @@ function evaluate(expr: Expr): any {
       environment.assign(expr.name, value)
       return value
   }
+}
+
+function evaluateLogical(expr: Logical): any {
+  const left = evaluate(expr.left)
+  if (expr.operator.type == TokenType.OR) {
+    if (isTruthy(left)) return left
+  } else {
+    if (!isTruthy(left)) return left
+  }
+
+  return evaluate(expr.right)
 }
 
 function evaluateUnary(expr: Unary): any {
@@ -122,7 +144,7 @@ function evaluateBinary(expr: Binary): any {
 function isTruthy(object: any): boolean {
   if (object == null) return false
   if (typeof object == "boolean") return object
-  return false
+  return true
 }
 
 function isEqual(a: any, b: any): boolean {

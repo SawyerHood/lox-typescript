@@ -27,7 +27,7 @@ export default class Parser {
   }
 
   assignment(): Expr {
-    const expr = this.equality()
+    const expr = this.or()
 
     if (this.match(TokenType.EQUAL)) {
       const equals = this.previous()
@@ -39,6 +39,30 @@ export default class Parser {
       }
 
       this.error(equals, "Invalid assignment target.")
+    }
+
+    return expr
+  }
+
+  or(): Expr {
+    let expr = this.and()
+
+    while (this.match(TokenType.OR)) {
+      const operator = this.previous()
+      const right = this.and()
+      expr = { type: "logical", left: expr, operator, right }
+    }
+
+    return expr
+  }
+
+  and(): Expr {
+    let expr = this.equality()
+
+    while (this.match(TokenType.AND)) {
+      const operator = this.previous()
+      const right = this.equality()
+      expr = { type: "logical", left: expr, operator, right }
     }
 
     return expr
@@ -64,11 +88,26 @@ export default class Parser {
   }
 
   statement(): Stmt {
+    if (this.match(TokenType.IF)) return this.ifStatement()
     if (this.match(TokenType.PRINT)) return this.printStatement()
     if (this.match(TokenType.LEFT_BRACE))
       return { type: "block statement", statements: this.block() }
 
     return this.expressionStatement()
+  }
+
+  ifStatement(): Stmt {
+    this.consume(TokenType.LEFT_PAREN, "Expect '(' after if.")
+    const condition = this.expression()
+    this.consume(TokenType.RIGHT_PAREN, "Expect ')' after condition.")
+
+    const thenBranch = this.statement()
+    let elseBranch = null
+    if (this.match(TokenType.ELSE)) {
+      elseBranch = this.statement()
+    }
+
+    return { type: "if statement", condition, thenBranch, elseBranch }
   }
 
   printStatement(): Stmt {
