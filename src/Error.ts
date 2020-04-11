@@ -1,7 +1,9 @@
 import Token from './Token'
 import TokenType from './TokenType'
+import {RuntimeError} from './Interpreter'
 
 let hadError = false
+let hadRuntimeError = false
 
 export function error(line: number, message: string) {
   report(line, '', message)
@@ -26,4 +28,9 @@ export function setHadError(e: boolean) {
 
 export function getHadError(): boolean {
   return hadError
+}
+
+export function runtimeError(e: RuntimeError) {
+  console.error(`${e.message}\n [line ${e.token.line}]`)
+  hadRuntimeError = true
 }

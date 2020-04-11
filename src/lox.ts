@@ -4,6 +4,7 @@ import Scanner from './Scanner'
 import {setHadError, getHadError} from './Error'
 import Parser from './Parser'
 import * as AstPrinter from './AstPrinter'
+import interpret from './Interpreter'
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -39,15 +40,14 @@ function runPrompt() {
 function run(source: string) {
   const scanner = new Scanner(source)
   const tokens = scanner.scanTokens()
-  const parser = new Parser(tokens);
+  const parser = new Parser(tokens)
 
   const expr = parser.parse()
 
   if (getHadError() || !expr) {
     return
   }
-
-  console.log(AstPrinter.visit(expr))
+  interpret(expr)
 }
 
 main(process.argv.slice(2))
