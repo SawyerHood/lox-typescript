@@ -88,6 +88,7 @@ export default class Parser {
   }
 
   statement(): Stmt {
+    if (this.match(TokenType.FOR)) return this.forStatement()
     if (this.match(TokenType.IF)) return this.ifStatement()
     if (this.match(TokenType.PRINT)) return this.printStatement()
     if (this.match(TokenType.WHILE)) return this.whileStatement()
@@ -95,6 +96,51 @@ export default class Parser {
       return { type: "block statement", statements: this.block() }
 
     return this.expressionStatement()
+  }
+
+  forStatement(): Stmt {
+    this.consume(TokenType.LEFT_PAREN, "Exprect '(' after 'for'.")
+
+    let initializer = null
+    if (this.match(TokenType.SEMICOLON)) {
+      initializer = null
+    } else if (this.match(TokenType.VAR)) {
+      initializer = this.varDeclaration()
+    } else {
+      initializer = this.expressionStatement()
+    }
+
+    let condition: Expr | null = null
+    if (!this.check(TokenType.SEMICOLON)) {
+      condition = this.expression()
+    }
+
+    this.consume(TokenType.SEMICOLON, "Exprect ';' after loop condition.")
+
+    let increment
+
+    if (!this.check(TokenType.RIGHT_PAREN)) {
+      increment = this.expression()
+    }
+    this.consume(TokenType.RIGHT_PAREN, "Expect ')' after for clauses.")
+
+    let body = this.statement()
+
+    if (increment) {
+      body = {
+        type: "block statement",
+        statements: [body, { type: "expression statement", expression: increment }],
+      }
+    }
+
+    if (!condition) condition = { type: "literal", value: true }
+    body = { type: "while statement", condition, body }
+
+    if (initializer) {
+      body = { type: "block statement", statements: [initializer, body] }
+    }
+
+    return body
   }
 
   whileStatement(): Stmt {
