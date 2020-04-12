@@ -112,6 +112,7 @@ export default class Parser {
     if (this.match(TokenType.FOR)) return this.forStatement()
     if (this.match(TokenType.IF)) return this.ifStatement()
     if (this.match(TokenType.PRINT)) return this.printStatement()
+    if (this.match(TokenType.RETURN)) return this.returnStatement()
     if (this.match(TokenType.WHILE)) return this.whileStatement()
     if (this.match(TokenType.LEFT_BRACE))
       return { type: "block statement", statements: this.block() }
@@ -119,8 +120,20 @@ export default class Parser {
     return this.expressionStatement()
   }
 
+  returnStatement(): Stmt {
+    const keyword = this.previous()
+    let value = null
+    if (!this.check(TokenType.SEMICOLON)) {
+      value = this.expression()
+    }
+
+    this.consume(TokenType.SEMICOLON, "Expect ';' after return value")
+
+    return { type: "return statement", keyword, value }
+  }
+
   forStatement(): Stmt {
-    this.consume(TokenType.LEFT_PAREN, "Exprect '(' after 'for'.")
+    this.consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.")
 
     let initializer = null
     if (this.match(TokenType.SEMICOLON)) {

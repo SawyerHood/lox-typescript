@@ -26,12 +26,17 @@ export type WhileStmt = {
   condition: Expr
   body: Stmt
 }
-
 export type FunctionStmt = {
   type: "function statement"
   name: Token
   params: Token[]
   body: Stmt[]
+}
+
+export type ReturnStmt = {
+  type: "return statement"
+  keyword: Token
+  value: Expr | null
 }
 
 export type Stmt =
@@ -42,3 +47,4 @@ export type Stmt =
   | IfStmt
   | WhileStmt
   | FunctionStmt
+  | ReturnStmt

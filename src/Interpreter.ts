@@ -17,14 +17,22 @@ globals.define("clock", {
   },
 })
 
-function createLoxCallable(declaration: FunctionStmt) {
+function createLoxFunction(declaration: FunctionStmt, closure: Environment) {
   return {
     call(args: any[]) {
-      const env = new Environment(globals)
+      const env = new Environment(closure)
       for (let i = 0; i < declaration.params.length; i++) {
         env.define(declaration.params[i].lexeme, args[i])
       }
-      evaluateBlock(declaration.body, env)
+      try {
+        evaluateBlock(declaration.body, env)
+      } catch (ret) {
+        if (ret instanceof Return) {
+          return ret.value
+        } else {
+          throw ret
+        }
+      }
       return null
     },
     arity() {
@@ -79,9 +87,14 @@ function evaluateStmt(stmt: Stmt): void {
       return
     }
     case "function statement": {
-      const fun = createLoxCallable(stmt)
+      const fun = createLoxFunction(stmt, environment)
       environment.define(stmt.name.lexeme, fun)
       return
+    }
+    case "return statement": {
+      let value = null
+      if (stmt.value) value = evaluate(stmt.value)
+      throw new Return(value)
     }
   }
 }
@@ -224,5 +237,12 @@ export class RuntimeError extends Error {
   constructor(token: Token, message: string) {
     super(message)
     this.token = token
+  }
+}
+
+class Return {
+  value: any = null
+  constructor(value: any) {
+    this.value = value
   }
 }
