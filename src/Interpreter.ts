@@ -1,10 +1,37 @@
-import { Expr, Unary, Binary, Stmt, Logical } from "./Ast"
+import { Expr, Unary, Binary, Stmt, Logical, Call, FunctionStmt } from "./Ast"
 import TokenType from "./TokenType"
 import Token from "./Token"
 import { runtimeError } from "./Error"
 import Environment from "./Enviornment"
 
-let environment = new Environment()
+const globals = new Environment()
+let environment = globals
+
+globals.define("clock", {
+  arity() {
+    return 0
+  },
+
+  call(args: any[]): number {
+    return Date.now() / 1000
+  },
+})
+
+function createLoxCallable(declaration: FunctionStmt) {
+  return {
+    call(args: any[]) {
+      const env = new Environment(globals)
+      for (let i = 0; i < declaration.params.length; i++) {
+        env.define(declaration.params[i].lexeme, args[i])
+      }
+      evaluateBlock(declaration.body, env)
+      return null
+    },
+    arity() {
+      return declaration.params.length
+    },
+  }
+}
 
 export default function interpret(statements: Stmt[]) {
   try {
@@ -51,6 +78,11 @@ function evaluateStmt(stmt: Stmt): void {
       }
       return
     }
+    case "function statement": {
+      const fun = createLoxCallable(stmt)
+      environment.define(stmt.name.lexeme, fun)
+      return
+    }
   }
 }
 
@@ -84,7 +116,27 @@ function evaluate(expr: Expr): any {
       const value = evaluate(expr.value)
       environment.assign(expr.name, value)
       return value
+    case "call":
+      return evaluateCall(expr)
   }
+}
+
+function evaluateCall(expr: Call): any {
+  const callee = evaluate(expr.callee)
+  const args = expr.arguments.map((arg) => evaluate(arg))
+
+  if (!callee.call || !callee.arity) {
+    throw new RuntimeError(expr.paren, "Can only call functions and classes")
+  }
+
+  if (args.length !== callee.arity()) {
+    throw new RuntimeError(
+      expr.paren,
+      `Expected ${callee.arity()} arguments but got ${args.length}.`
+    )
+  }
+
+  return callee.call(args)
 }
 
 function evaluateLogical(expr: Logical): any {
