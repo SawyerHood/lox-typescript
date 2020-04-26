@@ -5,6 +5,7 @@ import { runtimeError } from "./Error"
 import Environment from "./Enviornment"
 
 const globals = new Environment()
+const locals: Map<Expr, number> = new Map()
 let environment = globals
 
 globals.define("clock", {
@@ -16,6 +17,10 @@ globals.define("clock", {
     return Date.now() / 1000
   },
 })
+
+export function resolve(expr: Expr, depth: number) {
+  locals.set(expr, depth)
+}
 
 function createLoxFunction(declaration: FunctionStmt, closure: Environment) {
   return {
@@ -47,7 +52,11 @@ export default function interpret(statements: Stmt[]) {
       evaluateStmt(stmt)
     }
   } catch (e) {
-    runtimeError(e)
+    if (e instanceof RuntimeError) {
+      runtimeError(e)
+    } else {
+      throw e
+    }
   }
 }
 
@@ -124,13 +133,27 @@ function evaluate(expr: Expr): any {
     case "binary":
       return evaluateBinary(expr)
     case "variable":
-      return environment.get(expr.name)
+      return lookUpVariable(expr.name, expr)
     case "assign":
       const value = evaluate(expr.value)
-      environment.assign(expr.name, value)
+      const distance = locals.get(expr)
+      if (distance != null) {
+        environment.assignAt(distance, expr.name, value)
+      } else {
+        globals.assign(expr.name, value)
+      }
       return value
     case "call":
       return evaluateCall(expr)
+  }
+}
+
+function lookUpVariable(name: Token, expr: Expr): any {
+  const distance = locals.get(expr)
+  if (distance != null) {
+    return environment.getAt(distance, name.lexeme)
+  } else {
+    return globals.get(name)
   }
 }
 

@@ -1,10 +1,11 @@
-import {readFileSync} from 'fs'
-import readline from 'readline'
-import Scanner from './Scanner'
-import {setHadError, getHadError} from './Error'
-import Parser from './Parser'
-import * as AstPrinter from './AstPrinter'
-import interpret from './Interpreter'
+import { readFileSync } from "fs"
+import readline from "readline"
+import Scanner from "./Scanner"
+import { setHadError, getHadError } from "./Error"
+import Parser from "./Parser"
+import * as AstPrinter from "./AstPrinter"
+import interpret from "./Interpreter"
+import { Resolver } from "./Resolver"
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -13,7 +14,7 @@ const rl = readline.createInterface({
 
 function main(args: string[]) {
   if (args.length > 1) {
-    console.log('usage: node lox.js [script]')
+    console.log("usage: node lox.js [script]")
     return
   } else if (args.length === 1) {
     runFile(args[0])
@@ -23,14 +24,14 @@ function main(args: string[]) {
 }
 
 function runFile(path: string) {
-  const str = readFileSync(path, {encoding: 'utf-8'})
+  const str = readFileSync(path, { encoding: "utf-8" })
   run(str)
 }
 
 function runPrompt() {
-  rl.setPrompt('>')
+  rl.setPrompt(">")
   rl.prompt()
-  rl.on('line', (input) => {
+  rl.on("line", (input) => {
     run(input)
     setHadError(false)
     rl.prompt()
@@ -42,12 +43,20 @@ function run(source: string) {
   const tokens = scanner.scanTokens()
   const parser = new Parser(tokens)
 
-  const expr = parser.parse()
+  const statements = parser.parse()
 
-  if (getHadError() || !expr) {
+  if (getHadError() || !statements) {
     return
   }
-  interpret(expr)
+
+  const resolver = new Resolver()
+  resolver.resolveStatements(statements)
+
+  if (getHadError()) {
+    return
+  }
+
+  interpret(statements)
 }
 
 main(process.argv.slice(2))

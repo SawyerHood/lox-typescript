@@ -23,6 +23,18 @@ export default class Environment {
     throw new RuntimeError(name, `Undefined variable '${name.lexeme}'.`)
   }
 
+  getAt(distance: number, name: string) {
+    return this.ancestor(distance).values[name]
+  }
+
+  ancestor(distance: number): Environment {
+    let env: Environment = this as Environment
+    for (let i = 0; i < distance; i++) {
+      env = env!.enclosing!
+    }
+    return env
+  }
+
   assign(name: Token, value: any) {
     if (this.values.hasOwnProperty(name.lexeme)) {
       this.values[name.lexeme] = value
@@ -35,5 +47,9 @@ export default class Environment {
     }
 
     throw new RuntimeError(name, `Undefined variable '${name.lexeme}'.`)
+  }
+
+  assignAt(distance: number, name: Token, value: any) {
+    this.ancestor(distance).values[name.lexeme] = value
   }
 }

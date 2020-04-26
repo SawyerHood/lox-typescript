@@ -1,12 +1,12 @@
-import Token from './Token'
-import TokenType from './TokenType'
-import {RuntimeError} from './Interpreter'
+import Token from "./Token"
+import TokenType from "./TokenType"
+import { RuntimeError } from "./Interpreter"
 
 let hadError = false
 let hadRuntimeError = false
 
 export function error(line: number, message: string) {
-  report(line, '', message)
+  report(line, "", message)
 }
 
 function report(line: number, where: string, message: string) {
@@ -16,7 +16,7 @@ function report(line: number, where: string, message: string) {
 
 export function tokenError(token: Token, message: string) {
   if (token.type === TokenType.EOF) {
-    report(token.line, ' at end', message)
+    report(token.line, " at end", message)
   } else {
     report(token.line, " at '" + token.lexeme + "'", message)
   }
@@ -31,6 +31,6 @@ export function getHadError(): boolean {
 }
 
 export function runtimeError(e: RuntimeError) {
-  console.error(`${e.message}\n [line ${e.token.line}]`)
+  console.error(`${e.message}\n [line ${e?.token?.line}]`)
   hadRuntimeError = true
 }

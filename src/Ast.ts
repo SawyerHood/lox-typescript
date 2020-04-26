@@ -7,7 +7,7 @@ export type Literal = { type: "literal"; value: any }
 export type Logical = { type: "logical"; left: Expr; operator: Token; right: Expr }
 export type Unary = { type: "unary"; operator: Token; right: Expr }
 export type Variable = { type: "variable"; name: Token }
-export type Assign = { type: "assign"; name: Token; value: any }
+export type Assign = { type: "assign"; name: Token; value: Expr }
 
 export type Expr = Binary | Grouping | Literal | Unary | Variable | Assign | Logical | Call
 
