@@ -36,6 +36,8 @@ export default class Parser {
       if (expr.type === "variable") {
         const name = expr.name
         return { type: "assign", name, value }
+      } else if (expr.type === "get") {
+        return { type: "set", object: expr.object, name: expr.name, value }
       }
 
       this.error(equals, "Invalid assignment target.")
@@ -70,6 +72,7 @@ export default class Parser {
 
   declaration(): Stmt | null {
     try {
+      if (this.match(TokenType.CLASS)) return this.classDeclaration()
       if (this.match(TokenType.FUN)) return this.functionDeclaration("function")
       if (this.match(TokenType.VAR)) return this.varDeclaration()
       return this.statement()
@@ -77,6 +80,19 @@ export default class Parser {
       this.synchronize()
       return null
     }
+  }
+
+  classDeclaration(): Stmt {
+    const name = this.consume(TokenType.IDENTIFIER, "Expect class name.")
+    this.consume(TokenType.LEFT_BRACE, "Expect '{' before class body.")
+    const methods = []
+    while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd()) {
+      methods.push(this.functionDeclaration("method"))
+    }
+
+    this.consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
+
+    return { type: "class statement", methods, name }
   }
 
   functionDeclaration(kind: string): FunctionStmt {
@@ -289,6 +305,9 @@ export default class Parser {
     while (true) {
       if (this.match(TokenType.LEFT_PAREN)) {
         expr = this.finishCall(expr)
+      } else if (this.match(TokenType.DOT)) {
+        const name = this.consume(TokenType.IDENTIFIER, "Expect property name after '.'.")
+        expr = { type: "get", object: expr, name }
       } else {
         break
       }

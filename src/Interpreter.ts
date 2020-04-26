@@ -1,8 +1,9 @@
-import { Expr, Unary, Binary, Stmt, Logical, Call, FunctionStmt } from "./Ast"
+import { Expr, Unary, Binary, Stmt, Logical, Call, FunctionStmt, Get, Set } from "./Ast"
 import TokenType from "./TokenType"
 import Token from "./Token"
 import { runtimeError } from "./Error"
 import Environment from "./Enviornment"
+import { exhaustiveCheck } from "./exhaustiveCheck"
 
 const globals = new Environment()
 const locals: Map<Expr, number> = new Map()
@@ -22,27 +23,77 @@ export function resolve(expr: Expr, depth: number) {
   locals.set(expr, depth)
 }
 
-function createLoxFunction(declaration: FunctionStmt, closure: Environment) {
-  return {
-    call(args: any[]) {
-      const env = new Environment(closure)
-      for (let i = 0; i < declaration.params.length; i++) {
-        env.define(declaration.params[i].lexeme, args[i])
+interface LoxCallable {
+  call(args: any[]): any
+  arity(): number
+}
+
+class LoxClass implements LoxCallable {
+  private name: string
+
+  constructor(name: string) {
+    this.name = name
+  }
+
+  call(args: any[]) {
+    const instance = new LoxInstance(this)
+    return instance
+  }
+
+  arity() {
+    return 0
+  }
+}
+
+class LoxFunction implements LoxCallable {
+  private declaration: FunctionStmt
+  private closure: Environment
+
+  constructor(declaration: FunctionStmt, closure: Environment) {
+    this.declaration = declaration
+    this.closure = closure
+  }
+
+  call(args: any[]) {
+    const env = new Environment(this.closure)
+    for (let i = 0; i < this.declaration.params.length; i++) {
+      env.define(this.declaration.params[i].lexeme, args[i])
+    }
+    try {
+      evaluateBlock(this.declaration.body, env)
+    } catch (ret) {
+      if (ret instanceof Return) {
+        return ret.value
+      } else {
+        throw ret
       }
-      try {
-        evaluateBlock(declaration.body, env)
-      } catch (ret) {
-        if (ret instanceof Return) {
-          return ret.value
-        } else {
-          throw ret
-        }
-      }
-      return null
-    },
-    arity() {
-      return declaration.params.length
-    },
+    }
+    return null
+  }
+
+  arity() {
+    return this.declaration.params.length
+  }
+}
+
+class LoxInstance {
+  private klass: LoxClass
+  private fields: { [key: string]: any } = {}
+
+  constructor(klass: LoxClass) {
+    this.klass = klass
+  }
+
+  get(name: Token) {
+    if (this.fields.hasOwnProperty(name.lexeme)) {
+      return this.fields[name.lexeme]
+    }
+
+    throw new RuntimeError(name, `Undefined property '${name.lexeme}'.`)
+  }
+
+  set(name: Token, value: any) {
+    this.fields[name.lexeme] = value
   }
 }
 
@@ -96,7 +147,7 @@ function evaluateStmt(stmt: Stmt): void {
       return
     }
     case "function statement": {
-      const fun = createLoxFunction(stmt, environment)
+      const fun = new LoxFunction(stmt, environment)
       environment.define(stmt.name.lexeme, fun)
       return
     }
@@ -105,6 +156,14 @@ function evaluateStmt(stmt: Stmt): void {
       if (stmt.value) value = evaluate(stmt.value)
       throw new Return(value)
     }
+    case "class statement": {
+      environment.define(stmt.name.lexeme, null)
+      const klass = new LoxClass(stmt.name.lexeme)
+      environment.assign(stmt.name, klass)
+      break
+    }
+    default:
+      exhaustiveCheck(stmt)
   }
 }
 
@@ -145,7 +204,34 @@ function evaluate(expr: Expr): any {
       return value
     case "call":
       return evaluateCall(expr)
+    case "get":
+      return evaluateGet(expr)
+    case "set":
+      return evaluateSet(expr)
+    default:
+      exhaustiveCheck(expr)
   }
+}
+
+function evaluateSet(expr: Set): any {
+  const object = evaluate(expr.object)
+
+  if (!(object instanceof LoxInstance)) {
+    throw new RuntimeError(expr.name, "Only instances have fields.")
+  }
+
+  const value = evaluate(expr.value)
+  object.set(expr.name, value)
+  return value
+}
+
+function evaluateGet(expr: Get): any {
+  const obj = evaluate(expr.object)
+  if (obj instanceof LoxInstance) {
+    return obj.get(expr.name)
+  }
+
+  throw new RuntimeError(expr.name, "Only instances have properties.")
 }
 
 function lookUpVariable(name: Token, expr: Expr): any {

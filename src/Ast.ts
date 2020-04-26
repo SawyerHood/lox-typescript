@@ -8,13 +8,30 @@ export type Logical = { type: "logical"; left: Expr; operator: Token; right: Exp
 export type Unary = { type: "unary"; operator: Token; right: Expr }
 export type Variable = { type: "variable"; name: Token }
 export type Assign = { type: "assign"; name: Token; value: Expr }
+export type Get = { type: "get"; name: Token; object: Expr }
+export type Set = { type: "set"; object: Expr; name: Token; value: Expr }
 
-export type Expr = Binary | Grouping | Literal | Unary | Variable | Assign | Logical | Call
+export type Expr =
+  | Binary
+  | Grouping
+  | Literal
+  | Unary
+  | Variable
+  | Assign
+  | Logical
+  | Call
+  | Get
+  | Set
 
 export type ExpressionStmt = { type: "expression statement"; expression: Expr }
 export type PrintStmt = { type: "print statement"; expression: Expr }
 export type VarStmt = { type: "var statement"; name: Token; initializer: Expr | null }
 export type BlockStmt = { type: "block statement"; statements: Stmt[] }
+export type ClassStmt = {
+  type: "class statement"
+  name: Token
+  methods: FunctionStmt[]
+}
 export type IfStmt = {
   type: "if statement"
   condition: Expr
@@ -48,3 +65,4 @@ export type Stmt =
   | WhileStmt
   | FunctionStmt
   | ReturnStmt
+  | ClassStmt

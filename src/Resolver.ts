@@ -57,6 +57,11 @@ export class Resolver {
         this.resolveStatement(stmt.body)
         break
       }
+      case "class statement": {
+        this.declare(stmt.name)
+        this.define(stmt.name)
+        break
+      }
       default:
         exhaustiveCheck(stmt)
     }
@@ -134,6 +139,15 @@ export class Resolver {
       }
       case "unary": {
         this.resolveExpr(expr.right)
+        break
+      }
+      case "get": {
+        this.resolveExpr(expr.object)
+        break
+      }
+      case "set": {
+        this.resolveExpr(expr.value)
+        this.resolveExpr(expr.object)
         break
       }
       default:
