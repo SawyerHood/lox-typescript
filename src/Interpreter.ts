@@ -30,9 +30,19 @@ interface LoxCallable {
 
 class LoxClass implements LoxCallable {
   private name: string
+  private methods: { [key: string]: LoxFunction }
 
-  constructor(name: string) {
+  constructor(name: string, methods: { [key: string]: LoxFunction }) {
     this.name = name
+    this.methods = methods
+  }
+
+  findMethod(name: string): LoxFunction | null {
+    if (this.methods.hasOwnProperty(name)) {
+      return this.methods[name]
+    }
+
+    return null
   }
 
   call(args: any[]) {
@@ -88,6 +98,9 @@ class LoxInstance {
     if (this.fields.hasOwnProperty(name.lexeme)) {
       return this.fields[name.lexeme]
     }
+
+    const method = this.klass.findMethod(name.lexeme)
+    if (method) return method
 
     throw new RuntimeError(name, `Undefined property '${name.lexeme}'.`)
   }
@@ -158,7 +171,14 @@ function evaluateStmt(stmt: Stmt): void {
     }
     case "class statement": {
       environment.define(stmt.name.lexeme, null)
-      const klass = new LoxClass(stmt.name.lexeme)
+
+      const methods: { [key: string]: LoxFunction } = {}
+      for (const method of stmt.methods) {
+        const fun = new LoxFunction(method, environment)
+        methods[method.name.lexeme] = fun
+      }
+
+      const klass = new LoxClass(stmt.name.lexeme, methods)
       environment.assign(stmt.name, klass)
       break
     }

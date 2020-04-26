@@ -4,11 +4,11 @@ import { tokenError } from "./Error"
 import { exhaustiveCheck } from "./exhaustiveCheck"
 import { resolve } from "./Interpreter"
 
-type FunctionType = "none" | "function"
+type FunctionType = "none" | "function" | "method"
 
 export class Resolver {
   private scopes: Map<string, boolean>[] = []
-  private currentFunction: "none" | "function" = "none"
+  private currentFunction: FunctionType = "none"
 
   resolveStatements(statements: Array<Stmt>) {
     for (const statement of statements) {
@@ -59,6 +59,11 @@ export class Resolver {
       }
       case "class statement": {
         this.declare(stmt.name)
+
+        for (const method of stmt.methods) {
+          this.resolveFunction(method, "method")
+        }
+
         this.define(stmt.name)
         break
       }
