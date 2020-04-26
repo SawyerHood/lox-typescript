@@ -3,14 +3,8 @@ import readline from "readline"
 import Scanner from "./Scanner"
 import { setHadError, getHadError } from "./Error"
 import Parser from "./Parser"
-import * as AstPrinter from "./AstPrinter"
 import interpret from "./Interpreter"
 import { Resolver } from "./Resolver"
-
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-})
 
 function main(args: string[]) {
   if (args.length > 1) {
@@ -29,6 +23,10 @@ function runFile(path: string) {
 }
 
 function runPrompt() {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  })
   rl.setPrompt(">")
   rl.prompt()
   rl.on("line", (input) => {
