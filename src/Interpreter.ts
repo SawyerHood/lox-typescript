@@ -47,6 +47,12 @@ class LoxClass implements LoxCallable {
 
   call(args: any[]) {
     const instance = new LoxInstance(this)
+
+    const initializer = this.findMethod("init")
+    if (initializer) {
+      initializer.bind(instance).call(args)
+    }
+
     return instance
   }
 
@@ -58,10 +64,12 @@ class LoxClass implements LoxCallable {
 class LoxFunction implements LoxCallable {
   private declaration: FunctionStmt
   private closure: Environment
+  private isInitializer = false
 
-  constructor(declaration: FunctionStmt, closure: Environment) {
+  constructor(declaration: FunctionStmt, closure: Environment, isInitializer: boolean) {
     this.declaration = declaration
     this.closure = closure
+    this.isInitializer = isInitializer
   }
 
   call(args: any[]) {
@@ -73,16 +81,24 @@ class LoxFunction implements LoxCallable {
       evaluateBlock(this.declaration.body, env)
     } catch (ret) {
       if (ret instanceof Return) {
+        if (this.isInitializer) return this.closure.getAt(0, "this")
         return ret.value
       } else {
         throw ret
       }
     }
+    if (this.isInitializer) return this.closure.getAt(0, "this")
     return null
   }
 
   arity() {
     return this.declaration.params.length
+  }
+
+  bind(instance: LoxInstance): LoxFunction {
+    const env = new Environment(this.closure)
+    env.define("this", instance)
+    return new LoxFunction(this.declaration, env, this.isInitializer)
   }
 }
 
@@ -100,7 +116,7 @@ class LoxInstance {
     }
 
     const method = this.klass.findMethod(name.lexeme)
-    if (method) return method
+    if (method) return method.bind(this)
 
     throw new RuntimeError(name, `Undefined property '${name.lexeme}'.`)
   }
@@ -160,7 +176,7 @@ function evaluateStmt(stmt: Stmt): void {
       return
     }
     case "function statement": {
-      const fun = new LoxFunction(stmt, environment)
+      const fun = new LoxFunction(stmt, environment, false)
       environment.define(stmt.name.lexeme, fun)
       return
     }
@@ -174,7 +190,7 @@ function evaluateStmt(stmt: Stmt): void {
 
       const methods: { [key: string]: LoxFunction } = {}
       for (const method of stmt.methods) {
-        const fun = new LoxFunction(method, environment)
+        const fun = new LoxFunction(method, environment, method.name.lexeme === "init")
         methods[method.name.lexeme] = fun
       }
 
@@ -228,6 +244,8 @@ function evaluate(expr: Expr): any {
       return evaluateGet(expr)
     case "set":
       return evaluateSet(expr)
+    case "this":
+      return lookUpVariable(expr.keyword, expr)
     default:
       exhaustiveCheck(expr)
   }

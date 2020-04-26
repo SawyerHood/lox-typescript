@@ -4,11 +4,13 @@ import { tokenError } from "./Error"
 import { exhaustiveCheck } from "./exhaustiveCheck"
 import { resolve } from "./Interpreter"
 
-type FunctionType = "none" | "function" | "method"
+type FunctionType = "none" | "function" | "method" | "initializer"
+type ClassType = "none" | "class"
 
 export class Resolver {
   private scopes: Map<string, boolean>[] = []
   private currentFunction: FunctionType = "none"
+  private currentClass = "none"
 
   resolveStatements(statements: Array<Stmt>) {
     for (const statement of statements) {
@@ -49,7 +51,12 @@ export class Resolver {
           tokenError(stmt.keyword, "Cannot return from top-level code.")
         }
 
-        if (stmt.value) this.resolveExpr(stmt.value)
+        if (stmt.value) {
+          if (this.currentFunction === "initializer") {
+            tokenError(stmt.keyword, "Cannot return a value from an initializer.")
+          }
+          this.resolveExpr(stmt.value)
+        }
         break
       }
       case "while statement": {
@@ -58,13 +65,23 @@ export class Resolver {
         break
       }
       case "class statement": {
+        const enclosingClass = this.currentClass
+        this.currentClass = "class"
+
         this.declare(stmt.name)
+        this.define(stmt.name)
+
+        this.beginScope()
+        this.scopes[this.scopes.length - 1].set("this", true)
 
         for (const method of stmt.methods) {
-          this.resolveFunction(method, "method")
+          const declaration = method.name.lexeme === "init" ? "initializer" : "method"
+          this.resolveFunction(method, declaration)
         }
 
-        this.define(stmt.name)
+        this.endScope()
+        this.currentClass = enclosingClass
+
         break
       }
       default:
@@ -153,6 +170,15 @@ export class Resolver {
       case "set": {
         this.resolveExpr(expr.value)
         this.resolveExpr(expr.object)
+        break
+      }
+      case "this": {
+        if (this.currentClass === "none") {
+          tokenError(expr.keyword, "Cannot use 'this' outside of a class.")
+          break
+        }
+
+        this.resolveLocal(expr, expr.keyword)
         break
       }
       default:

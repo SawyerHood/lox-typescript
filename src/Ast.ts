@@ -10,6 +10,7 @@ export type Variable = { type: "variable"; name: Token }
 export type Assign = { type: "assign"; name: Token; value: Expr }
 export type Get = { type: "get"; name: Token; object: Expr }
 export type Set = { type: "set"; object: Expr; name: Token; value: Expr }
+export type This = { type: "this"; keyword: Token }
 
 export type Expr =
   | Binary
@@ -22,6 +23,7 @@ export type Expr =
   | Call
   | Get
   | Set
+  | This
 
 export type ExpressionStmt = { type: "expression statement"; expression: Expr }
 export type PrintStmt = { type: "print statement"; expression: Expr }

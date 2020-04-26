@@ -340,6 +340,8 @@ export default class Parser {
       return { type: "literal", value: this.previous().literal }
     }
 
+    if (this.match(TokenType.THIS)) return { type: "this", keyword: this.previous() }
+
     if (this.match(TokenType.IDENTIFIER)) {
       return { type: "variable", name: this.previous() }
     }
