@@ -1,6 +1,15 @@
 import Token from "./Token"
 import TokenType from "./TokenType"
-import { Expr, Binary, Grouping, Literal, Unary, Stmt, FunctionStmt, Variable } from "./Ast"
+import {
+  Expr,
+  BinaryExpr,
+  GroupingExpr,
+  LiteralExpr,
+  UnaryExpr,
+  Stmt,
+  FunctionStmt,
+  VariableExpr,
+} from "./Ast"
 import * as LoxError from "./Error"
 
 export default class Parser {
@@ -33,11 +42,11 @@ export default class Parser {
       const equals = this.previous()
       const value = this.assignment()
 
-      if (expr.type === "variable") {
+      if (expr.type === "VariableExpr") {
         const name = expr.name
-        return { type: "assign", name, value }
-      } else if (expr.type === "get") {
-        return { type: "set", object: expr.object, name: expr.name, value }
+        return { type: "AssignExpr", name, value }
+      } else if (expr.type === "GetExpr") {
+        return { type: "SetExpr", object: expr.object, name: expr.name, value }
       }
 
       this.error(equals, "Invalid assignment target.")
@@ -52,7 +61,7 @@ export default class Parser {
     while (this.match(TokenType.OR)) {
       const operator = this.previous()
       const right = this.and()
-      expr = { type: "logical", left: expr, operator, right }
+      expr = { type: "LogicalExpr", left: expr, operator, right }
     }
 
     return expr
@@ -64,7 +73,7 @@ export default class Parser {
     while (this.match(TokenType.AND)) {
       const operator = this.previous()
       const right = this.equality()
-      expr = { type: "logical", left: expr, operator, right }
+      expr = { type: "LogicalExpr", left: expr, operator, right }
     }
 
     return expr
@@ -85,11 +94,11 @@ export default class Parser {
   classDeclaration(): Stmt {
     const name = this.consume(TokenType.IDENTIFIER, "Expect class name.")
 
-    let superclass: Variable | null = null
+    let superclass: VariableExpr | null = null
 
     if (this.match(TokenType.LESS)) {
       this.consume(TokenType.IDENTIFIER, "Expect superclass name.")
-      superclass = { type: "variable", name: this.previous() }
+      superclass = { type: "VariableExpr", name: this.previous() }
     }
 
     this.consume(TokenType.LEFT_BRACE, "Expect '{' before class body.")
@@ -101,7 +110,7 @@ export default class Parser {
 
     this.consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
 
-    return { type: "class statement", methods, name, superclass }
+    return { type: "ClassStmt", methods, name, superclass }
   }
 
   functionDeclaration(kind: string): FunctionStmt {
@@ -121,7 +130,7 @@ export default class Parser {
 
     this.consume(TokenType.LEFT_BRACE, "Expect '{' before " + kind + " body.")
     const body = this.block()
-    return { type: "function statement", name, params: parameters, body }
+    return { type: "FunctionStmt", name, params: parameters, body }
   }
 
   varDeclaration(): Stmt {
@@ -130,7 +139,7 @@ export default class Parser {
 
     this.consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.")
 
-    return { type: "var statement", name, initializer }
+    return { type: "VarStmt", name, initializer }
   }
 
   statement(): Stmt {
@@ -139,8 +148,7 @@ export default class Parser {
     if (this.match(TokenType.PRINT)) return this.printStatement()
     if (this.match(TokenType.RETURN)) return this.returnStatement()
     if (this.match(TokenType.WHILE)) return this.whileStatement()
-    if (this.match(TokenType.LEFT_BRACE))
-      return { type: "block statement", statements: this.block() }
+    if (this.match(TokenType.LEFT_BRACE)) return { type: "BlockStmt", statements: this.block() }
 
     return this.expressionStatement()
   }
@@ -154,7 +162,7 @@ export default class Parser {
 
     this.consume(TokenType.SEMICOLON, "Expect ';' after return value")
 
-    return { type: "return statement", keyword, value }
+    return { type: "ReturnStmt", keyword, value }
   }
 
   forStatement(): Stmt {
@@ -187,16 +195,16 @@ export default class Parser {
 
     if (increment) {
       body = {
-        type: "block statement",
-        statements: [body, { type: "expression statement", expression: increment }],
+        type: "BlockStmt",
+        statements: [body, { type: "ExpressionStmt", expression: increment }],
       }
     }
 
-    if (!condition) condition = { type: "literal", value: true }
-    body = { type: "while statement", condition, body }
+    if (!condition) condition = { type: "LiteralExpr", value: true }
+    body = { type: "WhileStmt", condition, body }
 
     if (initializer) {
-      body = { type: "block statement", statements: [initializer, body] }
+      body = { type: "BlockStmt", statements: [initializer, body] }
     }
 
     return body
@@ -208,7 +216,7 @@ export default class Parser {
     this.consume(TokenType.RIGHT_PAREN, "Exprect ')' after condition.")
     const body = this.statement()
 
-    return { type: "while statement", condition, body }
+    return { type: "WhileStmt", condition, body }
   }
 
   ifStatement(): Stmt {
@@ -222,19 +230,19 @@ export default class Parser {
       elseBranch = this.statement()
     }
 
-    return { type: "if statement", condition, thenBranch, elseBranch }
+    return { type: "IfStmt", condition, thenBranch, elseBranch }
   }
 
   printStatement(): Stmt {
     const value = this.expression()
     this.consume(TokenType.SEMICOLON, "Expect ';' after value.")
-    return { type: "print statement", expression: value }
+    return { type: "PrintStmt", expression: value }
   }
 
   expressionStatement(): Stmt {
     const expr = this.expression()
     this.consume(TokenType.SEMICOLON, "Expect ';' after expression.")
-    return { type: "expression statement", expression: expr }
+    return { type: "ExpressionStmt", expression: expr }
   }
 
   block(): Stmt[] {
@@ -256,7 +264,7 @@ export default class Parser {
     while (this.match(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)) {
       const operator = this.previous()
       const right = this.comparison()
-      expr = { type: "binary", left: expr, operator, right }
+      expr = { type: "BinaryExpr", left: expr, operator, right }
     }
     return expr
   }
@@ -269,7 +277,7 @@ export default class Parser {
     ) {
       const operator = this.previous()
       const right = this.addition()
-      expr = { type: "binary", left: expr, operator, right }
+      expr = { type: "BinaryExpr", left: expr, operator, right }
     }
 
     return expr
@@ -281,7 +289,7 @@ export default class Parser {
     while (this.match(TokenType.MINUS, TokenType.PLUS)) {
       const operator = this.previous()
       const right = this.multiplication()
-      expr = { type: "binary", left: expr, operator, right }
+      expr = { type: "BinaryExpr", left: expr, operator, right }
     }
 
     return expr
@@ -293,7 +301,7 @@ export default class Parser {
     while (this.match(TokenType.SLASH, TokenType.STAR)) {
       const operator = this.previous()
       const right = this.unary()
-      expr = { type: "binary", left: expr, operator, right }
+      expr = { type: "BinaryExpr", left: expr, operator, right }
     }
 
     return expr
@@ -303,7 +311,7 @@ export default class Parser {
     if (this.match(TokenType.BANG, TokenType.MINUS)) {
       const operator = this.previous()
       const right = this.unary()
-      return { type: "unary", operator, right }
+      return { type: "UnaryExpr", operator, right }
     }
 
     return this.call()
@@ -316,7 +324,7 @@ export default class Parser {
         expr = this.finishCall(expr)
       } else if (this.match(TokenType.DOT)) {
         const name = this.consume(TokenType.IDENTIFIER, "Expect property name after '.'.")
-        expr = { type: "get", object: expr, name }
+        expr = { type: "GetExpr", object: expr, name }
       } else {
         break
       }
@@ -336,36 +344,36 @@ export default class Parser {
     }
 
     const paren = this.consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
-    return { type: "call", callee, paren, arguments: args }
+    return { type: "CallExpr", callee, paren, arguments: args }
   }
 
   primary(): Expr {
-    if (this.match(TokenType.FALSE)) return { type: "literal", value: false }
-    if (this.match(TokenType.TRUE)) return { type: "literal", value: true }
+    if (this.match(TokenType.FALSE)) return { type: "LiteralExpr", value: false }
+    if (this.match(TokenType.TRUE)) return { type: "LiteralExpr", value: true }
 
-    if (this.match(TokenType.NIL)) return { type: "literal", value: null }
+    if (this.match(TokenType.NIL)) return { type: "LiteralExpr", value: null }
 
     if (this.match(TokenType.NUMBER, TokenType.STRING)) {
-      return { type: "literal", value: this.previous().literal }
+      return { type: "LiteralExpr", value: this.previous().literal }
     }
 
     if (this.match(TokenType.SUPER)) {
       const keyword = this.previous()
       this.consume(TokenType.DOT, "Expect '.' after 'super'.")
       const method = this.consume(TokenType.IDENTIFIER, "Expect superclass method name.")
-      return { type: "super", keyword, method }
+      return { type: "SuperExpr", keyword, method }
     }
 
-    if (this.match(TokenType.THIS)) return { type: "this", keyword: this.previous() }
+    if (this.match(TokenType.THIS)) return { type: "ThisExpr", keyword: this.previous() }
 
     if (this.match(TokenType.IDENTIFIER)) {
-      return { type: "variable", name: this.previous() }
+      return { type: "VariableExpr", name: this.previous() }
     }
 
     if (this.match(TokenType.LEFT_PAREN)) {
       const expr = this.expression()
       this.consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.")
-      return { type: "grouping", expression: expr }
+      return { type: "GroupingExpr", expression: expr }
     }
 
     throw this.error(this.peek(), "Expected expression")

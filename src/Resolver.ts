@@ -3,19 +3,19 @@ import {
   Stmt,
   VarStmt,
   Expr,
-  Variable,
-  Assign,
+  VariableExpr,
+  AssignExpr,
   FunctionStmt,
   ClassStmt,
   IfStmt,
   ReturnStmt,
   WhileStmt,
-  Set,
-  Logical,
-  Binary,
-  Call,
-  This,
-  Super,
+  SetExpr,
+  LogicalExpr,
+  BinaryExpr,
+  CallExpr,
+  ThisExpr,
+  SuperExpr,
 } from "./Ast"
 import Token from "./Token"
 import { tokenError } from "./Error"
@@ -38,39 +38,39 @@ export class Resolver {
 
   private resolveStatement(stmt: Stmt) {
     switch (stmt.type) {
-      case "block statement": {
+      case "BlockStmt": {
         this.resolveBlockStmt(stmt)
         break
       }
-      case "var statement": {
+      case "VarStmt": {
         this.resolveVarStmt(stmt)
         break
       }
-      case "expression statement": {
+      case "ExpressionStmt": {
         this.resolveExpr(stmt.expression)
         break
       }
-      case "function statement": {
+      case "FunctionStmt": {
         this.resolveFunctionStmt(stmt)
         break
       }
-      case "if statement": {
+      case "IfStmt": {
         this.resolveIfStmt(stmt)
         break
       }
-      case "print statement": {
+      case "PrintStmt": {
         this.resolveExpr(stmt.expression)
         break
       }
-      case "return statement": {
+      case "ReturnStmt": {
         this.resolveReturnStmt
         break
       }
-      case "while statement": {
+      case "WhileStmt": {
         this.resolveWhileStmt(stmt)
         break
       }
-      case "class statement": {
+      case "ClassStmt": {
         this.resolveClassStmt(stmt)
         break
       }
@@ -80,39 +80,39 @@ export class Resolver {
   }
   private resolveExpr(expr: Expr) {
     switch (expr.type) {
-      case "variable":
+      case "VariableExpr":
         this.resolveVariableExpr(expr)
         break
-      case "assign":
+      case "AssignExpr":
         this.resolveAssignExpr(expr)
         break
-      case "binary":
+      case "BinaryExpr":
         this.resolveBinaryExpr(expr)
         break
-      case "call":
+      case "CallExpr":
         this.resolveCallExpr(expr)
         break
-      case "grouping":
+      case "GroupingExpr":
         this.resolveExpr(expr.expression)
         break
-      case "literal":
+      case "LiteralExpr":
         break
-      case "logical":
+      case "LogicalExpr":
         this.resolveLogicalExpr(expr)
         break
-      case "unary":
+      case "UnaryExpr":
         this.resolveExpr(expr.right)
         break
-      case "get":
+      case "GetExpr":
         this.resolveExpr(expr.object)
         break
-      case "set":
+      case "SetExpr":
         this.resolveSetExpr(expr)
         break
-      case "this":
+      case "ThisExpr":
         this.resolveThisExpr(expr)
         break
-      case "super":
+      case "SuperExpr":
         this.resolveSuperExpr(expr)
         break
       default:
@@ -120,7 +120,7 @@ export class Resolver {
     }
   }
 
-  private resolveSuperExpr(expr: Super) {
+  private resolveSuperExpr(expr: SuperExpr) {
     if (this.currentClass == "none") {
       tokenError(expr.keyword, "Cannot use 'super' outside of a class.")
     } else if (this.currentClass !== "subclass") {
@@ -129,7 +129,7 @@ export class Resolver {
     this.resolveLocal(expr, expr.keyword)
   }
 
-  private resolveThisExpr(expr: This) {
+  private resolveThisExpr(expr: ThisExpr) {
     if (this.currentClass === "none") {
       tokenError(expr.keyword, "Cannot use 'this' outside of a class.")
     }
@@ -137,24 +137,24 @@ export class Resolver {
     this.resolveLocal(expr, expr.keyword)
   }
 
-  private resolveSetExpr(expr: Set) {
+  private resolveSetExpr(expr: SetExpr) {
     this.resolveExpr(expr.value)
     this.resolveExpr(expr.object)
   }
 
-  private resolveLogicalExpr(expr: Logical) {
+  private resolveLogicalExpr(expr: LogicalExpr) {
     this.resolveExpr(expr.left)
     this.resolveExpr(expr.right)
   }
 
-  private resolveCallExpr(expr: Call) {
+  private resolveCallExpr(expr: CallExpr) {
     this.resolveExpr(expr.callee)
     for (const arg of expr.arguments) {
       this.resolveExpr(arg)
     }
   }
 
-  private resolveBinaryExpr(expr: Binary) {
+  private resolveBinaryExpr(expr: BinaryExpr) {
     this.resolveExpr(expr.left)
     this.resolveExpr(expr.right)
   }
@@ -200,11 +200,11 @@ export class Resolver {
 
     if (stmt.superclass) {
       this.beginScope()
-      this.peekScopes().set("super", true)
+      this.peekScopes().set("SuperExpr", true)
     }
 
     this.beginScope()
-    this.peekScopes().set("this", true)
+    this.peekScopes().set("ThisExpr", true)
 
     for (const method of stmt.methods) {
       const declaration = method.name.lexeme === "init" ? "initializer" : "method"
@@ -252,7 +252,7 @@ export class Resolver {
     this.currentFunction = enclosingFunction
   }
 
-  private resolveVariableExpr(expr: Variable) {
+  private resolveVariableExpr(expr: VariableExpr) {
     if (this.scopes.length && this.peekScopes().get(expr.name.lexeme) === false) {
       tokenError(expr.name, "Cannot read local variable in its own initializer.")
     }
@@ -260,7 +260,7 @@ export class Resolver {
     this.resolveLocal(expr, expr.name)
   }
 
-  private resolveAssignExpr(expr: Assign) {
+  private resolveAssignExpr(expr: AssignExpr) {
     this.resolveExpr(expr.value)
     this.resolveLocal(expr, expr.name)
   }
@@ -289,7 +289,7 @@ export class Resolver {
     const scope = this.peekScopes()
 
     if (scope.has(name.lexeme)) {
-      tokenError(name, "Variable with this name already declared in this scope.")
+      tokenError(name, "VariableExpr with this name already declared in this scope.")
     }
 
     scope.set(name.lexeme, false)

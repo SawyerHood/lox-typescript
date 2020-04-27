@@ -1,4 +1,14 @@
-import { Expr, Unary, Binary, Stmt, Logical, Call, FunctionStmt, Get, Set } from "./Ast"
+import {
+  Expr,
+  UnaryExpr,
+  BinaryExpr,
+  Stmt,
+  LogicalExpr,
+  CallExpr,
+  FunctionStmt,
+  GetExpr,
+  SetExpr,
+} from "./Ast"
 import TokenType from "./TokenType"
 import Token from "./Token"
 import { runtimeError } from "./Error"
@@ -87,13 +97,13 @@ class LoxFunction implements LoxCallable {
       evaluateBlock(this.declaration.body, env)
     } catch (ret) {
       if (ret instanceof Return) {
-        if (this.isInitializer) return this.closure.getAt(0, "this")
+        if (this.isInitializer) return this.closure.getAt(0, "ThisExpr")
         return ret.value
       } else {
         throw ret
       }
     }
-    if (this.isInitializer) return this.closure.getAt(0, "this")
+    if (this.isInitializer) return this.closure.getAt(0, "ThisExpr")
     return null
   }
 
@@ -103,7 +113,7 @@ class LoxFunction implements LoxCallable {
 
   bind(instance: LoxInstance): LoxFunction {
     const env = new Environment(this.closure)
-    env.define("this", instance)
+    env.define("ThisExpr", instance)
     return new LoxFunction(this.declaration, env, this.isInitializer)
   }
 }
@@ -148,26 +158,26 @@ export default function interpret(statements: Stmt[]) {
 
 function evaluateStmt(stmt: Stmt): void {
   switch (stmt.type) {
-    case "expression statement": {
+    case "ExpressionStmt": {
       evaluate(stmt.expression)
       return
     }
-    case "print statement": {
+    case "PrintStmt": {
       const val = evaluate(stmt.expression)
       console.log(val ?? "nil")
       return
     }
-    case "var statement": {
+    case "VarStmt": {
       const val = stmt.initializer ? evaluate(stmt.initializer) : null
 
       environment.define(stmt.name.lexeme, val)
       return
     }
-    case "block statement": {
+    case "BlockStmt": {
       evaluateBlock(stmt.statements, new Environment(environment))
       return
     }
-    case "if statement": {
+    case "IfStmt": {
       if (isTruthy(evaluate(stmt.condition))) {
         evaluateStmt(stmt.thenBranch)
       } else if (stmt.elseBranch) {
@@ -175,23 +185,23 @@ function evaluateStmt(stmt: Stmt): void {
       }
       return
     }
-    case "while statement": {
+    case "WhileStmt": {
       while (isTruthy(evaluate(stmt.condition))) {
         evaluateStmt(stmt.body)
       }
       return
     }
-    case "function statement": {
+    case "FunctionStmt": {
       const fun = new LoxFunction(stmt, environment, false)
       environment.define(stmt.name.lexeme, fun)
       return
     }
-    case "return statement": {
+    case "ReturnStmt": {
       let value = null
       if (stmt.value) value = evaluate(stmt.value)
       throw new Return(value)
     }
-    case "class statement": {
+    case "ClassStmt": {
       let superclass = null
 
       if (stmt.superclass) {
@@ -205,7 +215,7 @@ function evaluateStmt(stmt: Stmt): void {
 
       if (stmt.superclass) {
         environment = new Environment(environment)
-        environment.define("super", superclass)
+        environment.define("SuperExpr", superclass)
       }
 
       const methods: { [key: string]: LoxFunction } = {}
@@ -242,19 +252,19 @@ function evaluateBlock(statements: Stmt[], env: Environment) {
 
 function evaluate(expr: Expr): any {
   switch (expr.type) {
-    case "literal":
+    case "LiteralExpr":
       return expr.value
-    case "logical":
+    case "LogicalExpr":
       return evaluateLogical(expr)
-    case "grouping":
+    case "GroupingExpr":
       return evaluate(expr.expression)
-    case "unary":
+    case "UnaryExpr":
       return evaluateUnary(expr)
-    case "binary":
+    case "BinaryExpr":
       return evaluateBinary(expr)
-    case "variable":
+    case "VariableExpr":
       return lookUpVariable(expr.name, expr)
-    case "assign": {
+    case "AssignExpr": {
       const value = evaluate(expr.value)
       const distance = locals.get(expr)
       if (distance != null) {
@@ -264,19 +274,19 @@ function evaluate(expr: Expr): any {
       }
       return value
     }
-    case "call":
+    case "CallExpr":
       return evaluateCall(expr)
-    case "get":
+    case "GetExpr":
       return evaluateGet(expr)
-    case "set":
+    case "SetExpr":
       return evaluateSet(expr)
-    case "this":
+    case "ThisExpr":
       return lookUpVariable(expr.keyword, expr)
-    case "super":
+    case "SuperExpr":
       const distance = locals.get(expr) ?? 1
-      const superclass: LoxClass = environment.getAt(distance, "super")
+      const superclass: LoxClass = environment.getAt(distance, "SuperExpr")
 
-      const object: LoxInstance = environment.getAt(distance - 1, "this")
+      const object: LoxInstance = environment.getAt(distance - 1, "ThisExpr")
       const method = superclass.findMethod(expr.method.lexeme)
 
       if (!method) {
@@ -289,7 +299,7 @@ function evaluate(expr: Expr): any {
   }
 }
 
-function evaluateSet(expr: Set): any {
+function evaluateSet(expr: SetExpr): any {
   const object = evaluate(expr.object)
 
   if (!(object instanceof LoxInstance)) {
@@ -301,7 +311,7 @@ function evaluateSet(expr: Set): any {
   return value
 }
 
-function evaluateGet(expr: Get): any {
+function evaluateGet(expr: GetExpr): any {
   const obj = evaluate(expr.object)
   if (obj instanceof LoxInstance) {
     return obj.get(expr.name)
@@ -319,7 +329,7 @@ function lookUpVariable(name: Token, expr: Expr): any {
   }
 }
 
-function evaluateCall(expr: Call): any {
+function evaluateCall(expr: CallExpr): any {
   const callee = evaluate(expr.callee)
   const args = expr.arguments.map((arg) => evaluate(arg))
 
@@ -337,7 +347,7 @@ function evaluateCall(expr: Call): any {
   return callee.call(args)
 }
 
-function evaluateLogical(expr: Logical): any {
+function evaluateLogical(expr: LogicalExpr): any {
   const left = evaluate(expr.left)
   if (expr.operator.type == TokenType.OR) {
     if (isTruthy(left)) return left
@@ -348,7 +358,7 @@ function evaluateLogical(expr: Logical): any {
   return evaluate(expr.right)
 }
 
-function evaluateUnary(expr: Unary): any {
+function evaluateUnary(expr: UnaryExpr): any {
   const right = evaluate(expr.right)
 
   switch (expr.operator.type) {
@@ -360,7 +370,7 @@ function evaluateUnary(expr: Unary): any {
   }
 }
 
-function evaluateBinary(expr: Binary): any {
+function evaluateBinary(expr: BinaryExpr): any {
   const left = evaluate(expr.left)
   const right = evaluate(expr.right)
 
