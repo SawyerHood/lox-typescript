@@ -1,6 +1,6 @@
 import Token from "./Token"
 import TokenType from "./TokenType"
-import { Expr, Binary, Grouping, Literal, Unary, Stmt, FunctionStmt } from "./Ast"
+import { Expr, Binary, Grouping, Literal, Unary, Stmt, FunctionStmt, Variable } from "./Ast"
 import * as LoxError from "./Error"
 
 export default class Parser {
@@ -84,7 +84,16 @@ export default class Parser {
 
   classDeclaration(): Stmt {
     const name = this.consume(TokenType.IDENTIFIER, "Expect class name.")
+
+    let superclass: Variable | null = null
+
+    if (this.match(TokenType.LESS)) {
+      this.consume(TokenType.IDENTIFIER, "Expect superclass name.")
+      superclass = { type: "variable", name: this.previous() }
+    }
+
     this.consume(TokenType.LEFT_BRACE, "Expect '{' before class body.")
+
     const methods = []
     while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd()) {
       methods.push(this.functionDeclaration("method"))
@@ -92,7 +101,7 @@ export default class Parser {
 
     this.consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
 
-    return { type: "class statement", methods, name }
+    return { type: "class statement", methods, name, superclass }
   }
 
   functionDeclaration(kind: string): FunctionStmt {
@@ -338,6 +347,13 @@ export default class Parser {
 
     if (this.match(TokenType.NUMBER, TokenType.STRING)) {
       return { type: "literal", value: this.previous().literal }
+    }
+
+    if (this.match(TokenType.SUPER)) {
+      const keyword = this.previous()
+      this.consume(TokenType.DOT, "Expect '.' after 'super'.")
+      const method = this.consume(TokenType.IDENTIFIER, "Expect superclass method name.")
+      return { type: "super", keyword, method }
     }
 
     if (this.match(TokenType.THIS)) return { type: "this", keyword: this.previous() }

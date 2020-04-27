@@ -11,6 +11,7 @@ export type Assign = { type: "assign"; name: Token; value: Expr }
 export type Get = { type: "get"; name: Token; object: Expr }
 export type Set = { type: "set"; object: Expr; name: Token; value: Expr }
 export type This = { type: "this"; keyword: Token }
+export type Super = { type: "super"; keyword: Token; method: Token }
 
 export type Expr =
   | Binary
@@ -24,6 +25,7 @@ export type Expr =
   | Get
   | Set
   | This
+  | Super
 
 export type ExpressionStmt = { type: "expression statement"; expression: Expr }
 export type PrintStmt = { type: "print statement"; expression: Expr }
@@ -32,6 +34,7 @@ export type BlockStmt = { type: "block statement"; statements: Stmt[] }
 export type ClassStmt = {
   type: "class statement"
   name: Token
+  superclass: Variable | null
   methods: FunctionStmt[]
 }
 export type IfStmt = {

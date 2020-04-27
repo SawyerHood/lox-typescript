@@ -5,7 +5,7 @@ import { exhaustiveCheck } from "./exhaustiveCheck"
 import { resolve } from "./Interpreter"
 
 type FunctionType = "none" | "function" | "method" | "initializer"
-type ClassType = "none" | "class"
+type ClassType = "none" | "class" | "subclass"
 
 export class Resolver {
   private scopes: Map<string, boolean>[] = []
@@ -71,6 +71,19 @@ export class Resolver {
         this.declare(stmt.name)
         this.define(stmt.name)
 
+        if (stmt.superclass) {
+          if (stmt.name.lexeme === stmt.superclass.name.lexeme) {
+            tokenError(stmt.superclass.name, "A class cannot inherit from itself.")
+          }
+          this.currentClass = "subclass"
+          this.resolveExpr(stmt.superclass)
+        }
+
+        if (stmt.superclass) {
+          this.beginScope()
+          this.scopes[this.scopes.length - 1].set("super", true)
+        }
+
         this.beginScope()
         this.scopes[this.scopes.length - 1].set("this", true)
 
@@ -80,6 +93,8 @@ export class Resolver {
         }
 
         this.endScope()
+        if (stmt.superclass) this.endScope()
+
         this.currentClass = enclosingClass
 
         break
@@ -178,6 +193,15 @@ export class Resolver {
           break
         }
 
+        this.resolveLocal(expr, expr.keyword)
+        break
+      }
+      case "super": {
+        if (this.currentClass == "none") {
+          tokenError(expr.keyword, "Cannot use 'super' outside of a class.")
+        } else if (this.currentClass !== "subclass") {
+          tokenError(expr.keyword, "Cannot use 'super' in a class with no superclass.")
+        }
         this.resolveLocal(expr, expr.keyword)
         break
       }

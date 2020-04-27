@@ -30,16 +30,22 @@ interface LoxCallable {
 
 class LoxClass implements LoxCallable {
   private name: string
+  private superclass: LoxClass | null = null
   private methods: { [key: string]: LoxFunction }
 
-  constructor(name: string, methods: { [key: string]: LoxFunction }) {
+  constructor(name: string, superclass: LoxClass | null, methods: { [key: string]: LoxFunction }) {
     this.name = name
+    this.superclass = superclass
     this.methods = methods
   }
 
   findMethod(name: string): LoxFunction | null {
     if (this.methods.hasOwnProperty(name)) {
       return this.methods[name]
+    }
+
+    if (this.superclass) {
+      return this.superclass.findMethod(name)
     }
 
     return null
@@ -186,7 +192,21 @@ function evaluateStmt(stmt: Stmt): void {
       throw new Return(value)
     }
     case "class statement": {
+      let superclass = null
+
+      if (stmt.superclass) {
+        superclass = evaluate(stmt.superclass)
+        if (!(superclass instanceof LoxClass)) {
+          throw new RuntimeError(stmt.superclass.name, "Superclass must be a class")
+        }
+      }
+
       environment.define(stmt.name.lexeme, null)
+
+      if (stmt.superclass) {
+        environment = new Environment(environment)
+        environment.define("super", superclass)
+      }
 
       const methods: { [key: string]: LoxFunction } = {}
       for (const method of stmt.methods) {
@@ -194,7 +214,12 @@ function evaluateStmt(stmt: Stmt): void {
         methods[method.name.lexeme] = fun
       }
 
-      const klass = new LoxClass(stmt.name.lexeme, methods)
+      const klass = new LoxClass(stmt.name.lexeme, superclass, methods)
+
+      if (stmt.superclass) {
+        environment = environment.enclosing!
+      }
+
       environment.assign(stmt.name, klass)
       break
     }
@@ -229,7 +254,7 @@ function evaluate(expr: Expr): any {
       return evaluateBinary(expr)
     case "variable":
       return lookUpVariable(expr.name, expr)
-    case "assign":
+    case "assign": {
       const value = evaluate(expr.value)
       const distance = locals.get(expr)
       if (distance != null) {
@@ -238,6 +263,7 @@ function evaluate(expr: Expr): any {
         globals.assign(expr.name, value)
       }
       return value
+    }
     case "call":
       return evaluateCall(expr)
     case "get":
@@ -246,6 +272,18 @@ function evaluate(expr: Expr): any {
       return evaluateSet(expr)
     case "this":
       return lookUpVariable(expr.keyword, expr)
+    case "super":
+      const distance = locals.get(expr) ?? 1
+      const superclass: LoxClass = environment.getAt(distance, "super")
+
+      const object: LoxInstance = environment.getAt(distance - 1, "this")
+      const method = superclass.findMethod(expr.method.lexeme)
+
+      if (!method) {
+        throw new RuntimeError(expr.method, `Indefined property '${expr.method.lexeme}'.`)
+      }
+
+      return method.bind(object)
     default:
       exhaustiveCheck(expr)
   }
