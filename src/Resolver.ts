@@ -20,7 +20,7 @@ import {
 import Token from "./Token"
 import { tokenError } from "./Error"
 import { exhaustiveCheck } from "./exhaustiveCheck"
-import { resolve } from "./Interpreter"
+import { Interpreter } from "./Interpreter"
 
 type FunctionType = "none" | "function" | "method" | "initializer"
 type ClassType = "none" | "class" | "subclass"
@@ -29,6 +29,11 @@ export class Resolver {
   private scopes: Map<string, boolean>[] = []
   private currentFunction: FunctionType = "none"
   private currentClass: ClassType = "none"
+  private interpreter: Interpreter
+
+  constructor(interpreter: Interpreter) {
+    this.interpreter = interpreter
+  }
 
   resolveStatements(statements: Array<Stmt>) {
     for (const statement of statements) {
@@ -268,7 +273,7 @@ export class Resolver {
   private resolveLocal(expr: Expr, name: Token) {
     for (let i = this.scopes.length - 1; i >= 0; i--) {
       if (this.scopes[i].has(name.lexeme)) {
-        resolve(expr, this.scopes.length - 1 - i)
+        this.interpreter.resolve(expr, this.scopes.length - 1 - i)
       }
     }
   }

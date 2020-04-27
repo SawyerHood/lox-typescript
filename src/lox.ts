@@ -3,7 +3,7 @@ import readline from "readline"
 import Scanner from "./Scanner"
 import { setHadError, getHadError } from "./Error"
 import Parser from "./Parser"
-import interpret from "./Interpreter"
+import { Interpreter } from "./Interpreter"
 import { Resolver } from "./Resolver"
 
 function main(args: string[]) {
@@ -46,15 +46,15 @@ function run(source: string) {
   if (getHadError() || !statements) {
     return
   }
-
-  const resolver = new Resolver()
+  const interpreter = new Interpreter()
+  const resolver = new Resolver(interpreter)
   resolver.resolveStatements(statements)
 
   if (getHadError()) {
     return
   }
 
-  interpret(statements)
+  interpreter.interpret(statements)
 }
 
 main(process.argv.slice(2))
